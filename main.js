@@ -2,6 +2,7 @@
  * author: pel
  */
 ;~function(global) {
+	console.log(global)
 	'use strict';
 	var Game = {};
 	global['Game'] = Game;
@@ -99,13 +100,13 @@
 	var HERO_WIDTH = 26;
 	var ARROW_HEIGHT = 15, ARROW_WIDTH = 5; // 钉子尺寸
 
-	var FLOOR_VELOCITY_BASE = -0.10; // 地板上升速度
+	var FLOOR_VELOCITY_BASE = -0.05; // 地板上升速度
 	var GRAVITY_ACC = 0.0015; // 重力加速度
 	var SPRINGING_VELOCITY = -0.5; // 离开弹簧时的初速度
 	var SPRING_TIME = 100; // 弹簧压缩时间
 	var FAKE_FLOOR_TIME = 300, FAKE_FLOOR_TIME2 = 600; // 虚踏板的停留时间, 虚踏板的转动时间
-	var ROLLING_VELOCITY = 0.1; // 传送带速度
-	var CONTROL_VELOCITY = 0.2; // 左右操作的速度
+	var ROLLING_VELOCITY = 0.05; // 传送带速度
+	var CONTROL_VELOCITY = 0.1; // 左右操作的速度
 	var MAX_ACTION_INTERVAL = 20;
 
 	/**
@@ -846,6 +847,25 @@
 		}, false);
 
 		//regist control
+		// Speech control part
+		window.addEventListener('speech_left', function(e){
+			leftPressed = 0;
+			hero.turnLeft();
+			e.preventDefault();
+			e.stopPropagation();
+		}, false);
+		window.addEventListener('speech_right', function(e){
+			rightPressed = 0;
+			hero.turnRight();
+			e.preventDefault();
+			e.stopPropagation();
+		});
+		window.addEventListener('speech_stop', function(e){
+			leftPressed = NaN;
+			rightPressed = NaN;
+			hero.stay();
+		});
+		// ==================================================
 		window.addEventListener('keydown', function(e) {
 			if (e.keyCode == 37) { // left
 				leftPressed = 0;
@@ -950,6 +970,8 @@
 				}
 			}
 		}, false);
+		
+
 		//start loop
 		start();
 	}
@@ -985,5 +1007,68 @@
 			hero : 'led.png'
 		}, init);
 	}
-
 }(window);
+
+var SpeechRecognition = SpeechRecognition || webkitSpeechRecognition
+var SpeechGrammarList = SpeechGrammarList || webkitSpeechGrammarList
+var actions = ["left", "right", "stop"]
+var grammar = '#JSGF V1.0; grammar choose_action; public <action> = ' + actions.join(' | ') + ' ;'
+var recognition = new SpeechRecognition();
+var speechRecognitionList = new SpeechGrammarList();
+speechRecognitionList.addFromString(grammar, 1);
+recognition.grammars = speechRecognitionList;
+// Continuous receiving input
+recognition.continuous = true;
+// Language
+recognition.lang = 'zh-TW';
+// Not Return intermediate result
+recognition.interimResults = true;
+//
+recognition.maxAlternatives = 1;
+//
+recognition.onresult = function(event) {
+  // The SpeechRecognitionEvent results property returns a SpeechRecognitionResultList object
+  // The SpeechRecognitionResultList object contains SpeechRecognitionResult objects.
+  // It has a getter so it can be accessed like an array
+  // The [last] returns the SpeechRecognitionResult at the last position.
+  // Each SpeechRecognitionResult object contains SpeechRecognitionAlternative objects that contain individual results.
+  // These also have getters so they can be accessed like arrays.
+  // The [0] returns the SpeechRecognitionAlternative at position 0.
+  // We then return the transcript property of the SpeechRecognitionAlternative object
+
+  var last = event.results.length - 1;
+  var transcript = event.results[last][0].transcript;
+  // if transcript contains left, go left
+  var temp_event = null
+  for(var i = 0; i < transcript.length; i++){
+  	temp_event = null
+  	if (transcript[i] == "左"){ // 要喊左邊
+  		temp_event = new CustomEvent('speech_left');
+  	}else if(transcript[i] == "右"){ // 要喊右邊
+  		temp_event = new CustomEvent('speech_right');
+  	}else if(transcript[i] == "停"){ // 要喊停下來
+  		temp_event = new CustomEvent('speech_stop');
+  	}
+  	if (temp_event != null){
+  		window.dispatchEvent(temp_event);
+  	}
+  }
+
+  console.log('Result received: ' + transcript + '.');
+  
+  console.log('Confidence: ' + event.results[0][0].confidence);
+}
+
+recognition.onspeechend = function() {
+  recognition.stop();
+}
+
+recognition.onnomatch = function(event) {
+  diagnostic.textContent = "I didn't recognise that action.";
+}
+
+recognition.onerror = function(event) {
+  diagnostic.textContent = 'Error occurred in recognition: ' + event.error;
+}
+
+recognition.start()
