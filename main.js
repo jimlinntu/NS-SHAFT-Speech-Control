@@ -1022,7 +1022,7 @@ recognition.continuous = true;
 // Language
 recognition.lang = 'zh-TW';
 // Not Return intermediate result
-recognition.interimResults = true;
+recognition.interimResults = false;
 //
 recognition.maxAlternatives = 1;
 //
@@ -1060,15 +1060,16 @@ recognition.onresult = function(event) {
 }
 
 recognition.onspeechend = function() {
-  recognition.stop();
+  // TODO: BUG here
+  // recognition.stop();
 }
 
 recognition.onnomatch = function(event) {
-  diagnostic.textContent = "I didn't recognise that action.";
+  console.log("I didn't recognise that action.");
 }
 
 recognition.onerror = function(event) {
-  diagnostic.textContent = 'Error occurred in recognition: ' + event.error;
+  console.log('Error occurred in recognition: ' + event.error);
 }
 
 recognition.start()
